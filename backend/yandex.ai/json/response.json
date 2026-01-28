@@ -1,0 +1,14 @@
+{
+  "id": "fbvvjj1bmqdlnegqdgle",
+  "description": "",
+  "createdAt": null,
+  "createdBy": "",
+  "modifiedAt": null,
+  "done": true,
+  "metadata": null,
+  "response": {
+    "@type": "type.googleapis.com/yandex.cloud.ai.foundation_models.v1.image_generation.ImageGenerationResponse",
+    "image": "asdasda",
+    "modelVersion": ""
+  }
+}
