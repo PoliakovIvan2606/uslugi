@@ -21,6 +21,7 @@ func(router *ImageRouter) addImage(w http.ResponseWriter, r *http.Request) {
 
     // Получаем значение по ключу, указанному в HandleFunc ("id")
     ServiceID := vars["id"]
+	typeImage := vars["type"]
 
 	ServiceIDInt, err := strconv.Atoi(ServiceID)
 	if err != nil {
@@ -44,7 +45,7 @@ func(router *ImageRouter) addImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close() // Важно закрыть файл после использования
 
-	if err := router.UC.AddImage(r.Context(), router.s3, file, "image", ServiceID, ServiceIDInt); err != nil {
+	if err := router.UC.AddImage(r.Context(), router.s3, file, "image", typeImage, ServiceIDInt); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
