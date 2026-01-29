@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -18,13 +19,9 @@ import (
 )
 
 type GetMessageBroker struct {
+	TypePhoto string `json:"typePhoto"`
 	ServiceId int `json:"serviceId"`
 	Text string `json:"text"`
-}
-
-type SendMessageBroker struct {
-	ServiceId string `json:"serviceId"`
-	Status string `json:"status"`
 }
 
 var (
@@ -88,7 +85,7 @@ func main() {
 		fmt.Println(getMsg.Text)
 
 		// отправка сообщения inProcessing
-		repo.UpdateImageStatus(getMsg.ServiceId, "in_progress")
+		repo.UpdateImageStatus(getMsg.ServiceId, imageRepo.StatusInProgress)
 
 		// генерируем картинку
 		operationID := generator.GenerateImage(clientHttp, tokenManager.Get(), getMsg.Text)
@@ -98,11 +95,24 @@ func main() {
 
 		time.Sleep(5 * time.Second)
 
-		// добавление в s3
-		generator.UploadImageToS3(ctx, clientS3, dataImage, "image", strconv.Itoa(getMsg.ServiceId))
+		filePath := filepath.Join(getMsg.TypePhoto, strconv.Itoa(getMsg.ServiceId) + ".jpeg")
 
-		// добавление файла локально
-		generator.DownloadImagae(ctx, clientS3, "image", "image/"+strconv.Itoa(getMsg.ServiceId)+".jpeg")
+		// добавление в s3
+		generator.UploadImageToS3(
+			ctx, 
+			clientS3, 
+			dataImage, 
+			"image", 
+			filePath,
+		)
+
+		// добавление файла локально для доплнительной проверки он получает файл из s3
+		generator.DownloadImagae(
+			ctx, 
+			clientS3, 
+			"image", 
+			"image/"+filePath,
+		)
 		
 		// отправка сообщения created
 		repo.UpdateImageStatus(getMsg.ServiceId, imageRepo.StatusCreated)

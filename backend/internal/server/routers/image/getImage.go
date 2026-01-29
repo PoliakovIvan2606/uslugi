@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"notificate/pkg/handler"
+	"path/filepath"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -20,6 +21,7 @@ func(router *ImageRouter) getImage(w http.ResponseWriter, r *http.Request) {
     
     // Получаем значение по ключу, указанному в HandleFunc ("id")
     id := vars["id"]
+	typePhoto := vars["type"]
 
 	ServiceIdInt, err := strconv.Atoi(id)
 	if err != nil {
@@ -32,9 +34,11 @@ func(router *ImageRouter) getImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Ошика получения Status: "+err.Error(), http.StatusBadRequest)
         return
 	}
+
+	filePath := filepath.Join("image", typePhoto, id+".jpeg")
 	
 	if status == "created" {
-		dataImage, err := router.UC.GetImage(r.Context(), router.s3, "image", "image/"+id+".jpeg")
+		dataImage, err := router.UC.GetImage(r.Context(), router.s3, "image", filePath)
 		if err != nil {
 			http.Error(w, "Ошика получения GetImage: "+err.Error(), http.StatusBadRequest)
 			return

@@ -27,11 +27,6 @@ func NewUseCaseService(repo RepositoryService, wMB KafkaWriter) *UseCaseService 
 	return &UseCaseService{repo: repo, wMB: wMB}
 }
 
-type SendMessageBroker struct {
-	ServiceId int `json:"serviceId"`
-	Text string `json:"text"`
-}
-
 func(UC *UseCaseService) GetAllListServices() (*[]models.GetService, error) {
 	services, err := UC.repo.GetAllListServices()
 	if err != nil {

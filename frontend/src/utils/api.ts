@@ -16,7 +16,7 @@ export const api = {
       return data.map((service: any) => ({
         ...service,
         price: service.price || 'Договорная',
-        photos: service.id ? [`${API_BASE_URL}/image/${service.id}`] : []
+        photos: service.id ? [`${API_BASE_URL}/image/service/${service.id}`] : []
       }));
     } catch (error) {
       console.error('Error fetching services:', error);
@@ -86,7 +86,28 @@ export const api = {
       const formData = new FormData();
       formData.append('photo', imageFile);
 
-      const response = await fetch(`${API_BASE_URL}/iamge/${serviceId}`, {
+      const response = await fetch(`${API_BASE_URL}/iamge/service/${serviceId}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  },
+
+  async uploadTaskImage(serviceId: string, imageFile: File): Promise<boolean> {
+    try {
+      const formData = new FormData();
+      formData.append('photo', imageFile);
+
+      const response = await fetch(`${API_BASE_URL}/iamge/task/${serviceId}`, {
         method: 'POST',
         body: formData,
       });
@@ -104,11 +125,11 @@ export const api = {
 
   // Get image URL for service
   getServiceImageUrl(id: string): string {
-    return `${API_BASE_URL}/iamge/${id}`;
+    return `${API_BASE_URL}/iamge/service/${id}`;
   },
 
   // Get image URL for task
   getTaskImageUrl(id: string): string {
-    return `${API_BASE_URL}/image/${id}`;
+    return `${API_BASE_URL}/image/task/${id}`;
   }
 };

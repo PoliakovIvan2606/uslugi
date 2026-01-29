@@ -12,10 +12,10 @@ import (
 )
 
 
-func(UC *UseCaseImage) GetImage(ctx context.Context, client *s3.Client, bucket, key string) ([]byte, error) {
+func(UC *UseCaseImage) GetImage(ctx context.Context, client *s3.Client, bucket, filePath string) ([]byte, error) {
 	out, err := client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
+		Key:    aws.String(filePath),
 	})
 
 	if err == nil {
@@ -29,7 +29,7 @@ func(UC *UseCaseImage) GetImage(ctx context.Context, client *s3.Client, bucket, 
 	}
 
 	// Получаем локальный файл если произошла ошибка при получении через s3
-	path := filepath.Clean(filepath.Join("..", key))
+	path := filepath.Clean(filepath.Join("..", filePath))
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("local read: %w", err)

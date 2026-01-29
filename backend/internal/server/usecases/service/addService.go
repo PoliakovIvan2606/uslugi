@@ -11,19 +11,27 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+
+type SendMessageBroker struct {
+	TypePhoto string `json:"typePhoto"`
+	ServiceId int `json:"serviceId"`
+	Text string `json:"text"`
+}
+
 func(UC *UseCaseService) AddService(service models.AddServiceRequest) (int, error) {
 	ServiceId, err := UC.repo.AddService(service)
 	if err != nil {
 		return 0, err
 	}
 
-	// TODO надо прокинуть переменные подумать как правильно
+
 	if err = UC.repo.AddStatusImage(ServiceId, imageRepo.StatusNew); err != nil {
 		return 0, fmt.Errorf("ошибка добавления картинки в БД: %w", err)
 	}
 	
 	if service.GenerateImage {
 		msg, err := json.Marshal(SendMessageBroker{
+			TypePhoto: "service", 
 			ServiceId: ServiceId,
 			Text: service.ShortDescription,
 		})
