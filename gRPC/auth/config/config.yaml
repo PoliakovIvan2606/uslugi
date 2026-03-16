@@ -1,0 +1,6 @@
+ggRPCc:
+  port: :44044
+  host: localhost
+  timeout: 10h
+jwt:
+  token_ttl: 1h

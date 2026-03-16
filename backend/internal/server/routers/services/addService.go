@@ -26,7 +26,7 @@ func(roter *ServiceRouter) addService(w http.ResponseWriter, r *http.Request) {
         return
 	}
 
-	ServiceId, err := roter.UC.AddService(in)
+	ServiceId, err := roter.UC.AddService(r.Context(), in)
 	if err != nil {
 		http.Error(w, "Ошибка добавления сервиса: "+err.Error(), http.StatusBadRequest)
         return

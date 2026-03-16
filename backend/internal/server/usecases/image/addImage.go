@@ -15,7 +15,7 @@ import (
 
 
 func(UC *UseCaseImage) AddImage(ctx context.Context, client *s3.Client, data multipart.File, bucket, nameDir string, ServiceId int) error {
-	exists, err := UC.repo.ExistsImage(ServiceId)
+	exists, err := UC.repo.ExistsImage(ctx, ServiceId)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func(UC *UseCaseImage) AddImage(ctx context.Context, client *s3.Client, data mul
 			return fmt.Errorf("ошибка записи файла")
 		}
 
-		if err = UC.repo.UpdateImageStatus(ServiceId, imageRepo.StatusCreated); err != nil {
+		if err = UC.repo.UpdateImageStatus(ctx, ServiceId, imageRepo.StatusCreated); err != nil {
 			return fmt.Errorf("ошибка добавления картинки в БД: %w", err)
 		}
 	} else {

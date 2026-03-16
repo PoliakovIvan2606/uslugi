@@ -5,11 +5,12 @@ import { X, Upload, Sparkles } from 'lucide-react';
 interface AddTaskModalProps {
   onClose: () => void;
   onAdd: (task: Omit<Task, 'id' | 'date'>) => void;
+  onAddToServer: (taskData: any, imageFile: File | null, generateImage: boolean) => Promise<void>;
 }
 
 const categories = ['Ремонт', 'Образование', 'Транспорт', 'IT и Digital', 'Красота', 'Доставка', 'Уборка', 'Другое'];
 
-export function AddTaskModal({ onClose, onAdd }: AddTaskModalProps) {
+export function AddTaskModal({ onClose, onAdd, onAddToServer }: AddTaskModalProps) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -23,18 +24,18 @@ export function AddTaskModal({ onClose, onAdd }: AddTaskModalProps) {
     location: '',
     requirements: ''
   });
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [generatePhoto, setGeneratePhoto] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
-        setPhotos([result]);
         setPreviewUrl(result);
       };
       reader.readAsDataURL(file);
@@ -42,53 +43,46 @@ export function AddTaskModal({ onClose, onAdd }: AddTaskModalProps) {
   };
 
   const handleRemoveImage = () => {
-    setPhotos([]);
+    setImageFile(null);
     setPreviewUrl(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.title && formData.description && formData.budget && formData.author) {
-      let finalPhotos = photos;
+      setIsSubmitting(true);
+      
+      try {
+        // Parse budget to number (extract digits)
+        const budgetMatch = formData.budget.match(/\d+/);
+        const budgetNumber = budgetMatch ? parseInt(budgetMatch[0]) : 0;
 
-      // Generate photo if checkbox is checked and no manual photo is uploaded
-      if (generatePhoto && photos.length === 0 && formData.description) {
-        setIsGenerating(true);
-        try {
-          // Use the description to search for a relevant image
-          const searchQuery = formData.title + ' ' + formData.category;
-          const response = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchQuery)}&per_page=1&client_id=cf5CACzmUQ22RT5oidDMlEndemic_dcyTE0-TwhlPC2KY4`);
-          const data = await response.json();
-          
-          if (data.results && data.results.length > 0) {
-            const imageUrl = data.results[0].urls.regular;
-            finalPhotos = [imageUrl];
-          }
-        } catch (error) {
-          console.error('Error generating photo:', error);
-        } finally {
-          setIsGenerating(false);
-        }
+        // Prepare requirements string (one per line joined by newline)
+        const requirementsString = formData.requirements || '';
+
+        const taskData = {
+          name: formData.title,
+          shortDescription: formData.description,
+          allDescription: formData.fullDescription || formData.description,
+          category: formData.category,
+          budget: budgetNumber,
+          nameCustomer: formData.author,
+          deadline: formData.deadline || '',
+          phone: formData.phone || '',
+          email: formData.email || '',
+          location: formData.location || '',
+          requirements: requirementsString,
+          generateImage: generatePhoto && !imageFile
+        };
+
+        await onAddToServer(taskData, imageFile, generatePhoto && !imageFile);
+        onClose();
+      } catch (error) {
+        console.error('Error submitting task:', error);
+        alert('Ошибка при добавлении задачи. Пожалуйста, попробуйте еще раз.');
+      } finally {
+        setIsSubmitting(false);
       }
-
-      const requirementsArray = formData.requirements
-        ? formData.requirements.split('\n').filter(req => req.trim())
-        : undefined;
-
-      onAdd({
-        title: formData.title,
-        description: formData.description,
-        category: formData.category,
-        budget: formData.budget,
-        author: formData.author,
-        deadline: formData.deadline || undefined,
-        fullDescription: formData.fullDescription || undefined,
-        phone: formData.phone || undefined,
-        email: formData.email || undefined,
-        location: formData.location || undefined,
-        photos: finalPhotos.length > 0 ? finalPhotos : undefined,
-        requirements: requirementsArray
-      });
     }
   };
 
@@ -324,16 +318,16 @@ export function AddTaskModal({ onClose, onAdd }: AddTaskModalProps) {
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              disabled={isGenerating}
+              disabled={isSubmitting}
             >
               Отмена
             </button>
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-              disabled={isGenerating}
+              disabled={isSubmitting}
             >
-              {isGenerating ? (
+              {isSubmitting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Генерация...

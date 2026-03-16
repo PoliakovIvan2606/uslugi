@@ -29,7 +29,7 @@ func NewTokenManager(ctx context.Context) (*TokenManager, error) {
 }
 
 func (t *TokenManager) run(ctx context.Context) {
-	ticker := time.NewTicker(24 * time.Hour)
+	ticker := time.NewTicker(12 * time.Hour)
 	defer ticker.Stop()
 
 	for {

@@ -9,9 +9,9 @@ import (
 
 
 type RepositoryService interface {
-	AddService(service models.AddServiceRequest) (int, error)
-	AddStatusImage(ServiceID int, Status string) error
-	GetAllListServices() (*[]models.GetService, error)
+	AddService(ctx context.Context, service models.AddServiceRequest) (int, error)
+	AddStatusImage(ctx context.Context, ServiceID int, Status, Type string) error
+	GetAllListServices(ctx context.Context) ([]models.GetService, error)
 }
 
 type KafkaWriter interface {
@@ -27,8 +27,8 @@ func NewUseCaseService(repo RepositoryService, wMB KafkaWriter) *UseCaseService 
 	return &UseCaseService{repo: repo, wMB: wMB}
 }
 
-func(UC *UseCaseService) GetAllListServices() (*[]models.GetService, error) {
-	services, err := UC.repo.GetAllListServices()
+func(UC *UseCaseService) GetAllListServices(ctx context.Context) ([]models.GetService, error) {
+	services, err := UC.repo.GetAllListServices(ctx)
 	if err != nil {
 		return nil, err
 	}

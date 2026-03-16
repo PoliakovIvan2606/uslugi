@@ -252,9 +252,41 @@ export default function App() {
     setShowTaskModal(false);
   };
 
+  const handleAddTaskToServer = async (taskData: any, imageFile: File | null, generateImage: boolean) => {
+    if (!currentUser) {
+      alert('Войдите в аккаунт, чтобы добавить задачу');
+      setAuthView('login');
+      return;
+    }
+
+    try {
+      // Send task data to server
+      const taskId = await api.addTask(taskData);
+      
+      if (!taskId) {
+        throw new Error('No task ID returned from server');
+      }
+
+      // If user uploaded an image (not generating), upload it
+      if (imageFile && !generateImage) {
+        await api.uploadTaskImage(taskId, imageFile);
+      }
+
+      // Reload tasks from server
+      const updatedTasks = await api.fetchTasks();
+      setTasks(updatedTasks);
+      
+      setShowTaskModal(false);
+      alert('Задача успешно добавлена!');
+    } catch (error) {
+      console.error('Error adding task:', error);
+      throw error;
+    }
+  };
+
   const handleStartChat = (participantName: string, itemTitle: string, itemType: 'service' | 'task') => {
     if (!currentUser) {
-      alert('Войдите в аккаунт, чтобы нача��ь общение');
+      alert('Войдите в аккаунт, чтобы начать общение');
       setAuthView('login');
       return;
     }
@@ -560,6 +592,7 @@ export default function App() {
         <AddTaskModal
           onClose={() => setShowTaskModal(false)}
           onAdd={handleAddTask}
+          onAddToServer={handleAddTaskToServer}
         />
       )}
     </div>

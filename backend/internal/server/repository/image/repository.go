@@ -1,84 +1,67 @@
 package image
 
 import (
-	"database/sql"
+	"context" // Добавлено
 	"fmt"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type RepositoryImage struct {
-	Db *sql.DB
+	Db *pgxpool.Pool
 }
 
-
-
-func NewRepositoryImage(Db *sql.DB) *RepositoryImage {
+func NewRepositoryImage(Db *pgxpool.Pool) *RepositoryImage {
 	return &RepositoryImage{
 		Db: Db,
 	}
 }
 
 const (
-	StatusNew = "new"
+	StatusNew        = "new"
 	StatusInProgress = "in_progress"
-	StatusCreated = "created"
+	StatusCreated    = "created"
 )
 
+func (rep *RepositoryImage) ExistsImage(ctx context.Context, ImageID int) (bool, error) {
+	query := `SELECT EXISTS (SELECT id FROM service WHERE id = $1)`
 
-func(rep *RepositoryImage) ExistsImage(ImageID int) (bool, error) {
-	query := `SELECT EXISTS (SELECT id FROM service WHERE id = ?)`
-
-	Exists := false
-	err := rep.Db.QueryRow(query, ImageID).Scan(&Exists)
+	var exists bool
+	err := rep.Db.QueryRow(ctx, query, ImageID).Scan(&exists)
 	if err != nil {
-		// ошибки
 		return false, fmt.Errorf("query failed: %w", err)
 	}
-	// Status теперь содержит значение из БД
 
-    if err != nil {
-        return false, fmt.Errorf("ошибка выполнения запроса ExistsImage: %w", err)
-    }
-
-	return Exists, nil
+	return exists, nil
 }
 
-func (rep *RepositoryImage) UpdateImageStatus(ImageID int, Status string) error {
-    query := `UPDATE generate_image SET status = ? WHERE id = ?`
-    
+func (rep *RepositoryImage) UpdateImageStatus(ctx context.Context, ImageID int, Status string) error {
+	query := `UPDATE generate_image SET status = $1 WHERE id = $2`
+
 	if Status != StatusNew && Status != StatusInProgress && Status != StatusCreated {
 		return fmt.Errorf("неправильный статус")
 	}
 
+	_, err := rep.Db.Exec(ctx, query, Status, ImageID)
+	if err != nil {
+		return fmt.Errorf("ошибка выполнения запроса UpdateImageStatus: %w", err)
+	}
 
-    _, err := rep.Db.Exec(query, 
-        Status,
-        ImageID,
-    )
-    if err != nil {
-        return fmt.Errorf("ошибка выполнения запроса UpdateImageStatus: %w", err)
-    }
-    
-    return nil
+	return nil
 }
 
-func(rep *RepositoryImage) GetStatusImage(ServiceID int) (string, error) {
-	query := `SELECT status FROM generate_image WHERE id = ?`
+func (rep *RepositoryImage) GetStatusImage(ctx context.Context, ServiceID int, Type string) (string, error) {
+	query := `SELECT status FROM generate_image WHERE id = $1 AND type = $2`
 
-	var Status string
-	err := rep.Db.QueryRow(query, ServiceID).Scan(&Status)
+	var status string
+	err := rep.Db.QueryRow(ctx, query, ServiceID, Type).Scan(&status)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			// Строка не найдена, обработайте как нужно (например, Status = "" или возврат ошибки)
-			return "", fmt.Errorf("service not found: %w", err)
+		if err == pgx.ErrNoRows {
+			return "", fmt.Errorf("service not found")
 		}
-		// Другие ошибки (SQL, подключение и т.д.)
 		return "", fmt.Errorf("query failed: %w", err)
 	}
-	// Status теперь содержит значение из БД
 
-    if err != nil {
-        return "", fmt.Errorf("ошибка выполнения запроса GetStatusImage: %w", err)
-    }
-
-	return Status, nil
+	return status, nil
 }

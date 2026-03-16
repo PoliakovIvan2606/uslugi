@@ -17,16 +17,9 @@ export function ServiceList({ services, tasks, onStartChat, onViewService }: Ser
   const [selectedCategory, setSelectedCategory] = useState('Все категории');
 
   const filteredServices = services.filter(service => {
-    const title = service.title ?? '';        // если undefined, ставим пустую строку
-    const description = service.description ?? '';
-
-    const matchesSearch =
-      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      description.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesCategory =
-      selectedCategory === 'Все категории' || service.category === selectedCategory;
-
+    const matchesSearch = service.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         service.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'Все категории' || service.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -34,6 +27,7 @@ export function ServiceList({ services, tasks, onStartChat, onViewService }: Ser
   const getMatchingTasksCount = (category: string) => {
     return tasks.filter(task => task.category === category).length;
   };
+
   return (
     <div>
       {/* Search and Filter */}

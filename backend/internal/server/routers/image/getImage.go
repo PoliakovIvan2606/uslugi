@@ -29,7 +29,7 @@ func(router *ImageRouter) getImage(w http.ResponseWriter, r *http.Request) {
         return
 	}
 
-	status, err := router.UC.GetStatusImage(ServiceIdInt)
+	status, err := router.UC.GetStatusImage(r.Context(), ServiceIdInt, typePhoto)
 	if err != nil {
 		http.Error(w, "Ошика получения Status: "+err.Error(), http.StatusBadRequest)
         return

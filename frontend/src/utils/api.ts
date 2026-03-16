@@ -37,7 +37,7 @@ export const api = {
       return data.map((task: any) => ({
         ...task,
         budget: task.budget || 'Не указан',
-        photos: task.id ? [`${API_BASE_URL}/task/getImage/${task.id}`] : []
+        photos: task.id ? [`${API_BASE_URL}/image/task/${task.id}`] : []
       }));
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -86,7 +86,7 @@ export const api = {
       const formData = new FormData();
       formData.append('photo', imageFile);
 
-      const response = await fetch(`${API_BASE_URL}/iamge/service/${serviceId}`, {
+      const response = await fetch(`${API_BASE_URL}/image/service/${serviceId}`, {
         method: 'POST',
         body: formData,
       });
@@ -102,12 +102,49 @@ export const api = {
     }
   },
 
+  
+
+  async addTask(taskData: {
+    name: string;
+    shortDescription: string;
+    allDescription: string;
+    category: string;
+    budget: number;
+    nameCustomer: string;
+    deadline: string;
+    phone: string;
+    email: string;
+    location: string;
+    requirements: string;
+    generateImage: boolean;
+  }): Promise<string | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/task/addTask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add task');
+      }
+
+      const data = await response.json();
+      return data.id || data; // Return the ID from response
+    } catch (error) {
+      console.error('Error adding task:', error);
+      throw error;
+    }
+  },
+
   async uploadTaskImage(serviceId: string, imageFile: File): Promise<boolean> {
     try {
       const formData = new FormData();
       formData.append('photo', imageFile);
 
-      const response = await fetch(`${API_BASE_URL}/iamge/task/${serviceId}`, {
+      const response = await fetch(`${API_BASE_URL}/image/task/${serviceId}`, {
         method: 'POST',
         body: formData,
       });

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -58,13 +59,25 @@ func main() {
 	clientS3 := s3.NewS3Client(ctx, cfg.S3.Host, cfg.S3.Port, cfg.S3.Region)
 	slog.Info("Подключение к s3")
 
-	connectDB, err := db.NewConnectSqliteDB(cfg.DB.Path)
+		// подключение к БД
+	pgDsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s",
+		cfg.Postgres.User,
+		cfg.Postgres.Pass,
+		cfg.Postgres.Host,
+		cfg.Postgres.Port,
+		cfg.Postgres.NameDB,
+	)
+	
+	pgClient, err := db.NewClient(context.Background(), 5, 3*time.Second, pgDsn, false)
 	if err != nil {
-		slog.Error("подключение к БД", "error", err)
+		slog.Error("Failed to initialize database: %v", err)
+		os.Exit(1)
 	}
+	defer pgClient.Close()
 	slog.Info("Подключение к БД")
 
-	repo := imageRepo.NewRepositoryImage(connectDB)
+	repo := imageRepo.NewRepositoryImage(pgClient)
 	
 
 	fmt.Println("Start generate image")
@@ -85,7 +98,7 @@ func main() {
 		fmt.Println(getMsg.Text)
 
 		// отправка сообщения inProcessing
-		repo.UpdateImageStatus(getMsg.ServiceId, imageRepo.StatusInProgress)
+		repo.UpdateImageStatus(ctx, getMsg.ServiceId, imageRepo.StatusInProgress)
 
 		// генерируем картинку
 		operationID := generator.GenerateImage(clientHttp, tokenManager.Get(), getMsg.Text)
@@ -115,6 +128,6 @@ func main() {
 		)
 		
 		// отправка сообщения created
-		repo.UpdateImageStatus(getMsg.ServiceId, imageRepo.StatusCreated)
+		repo.UpdateImageStatus(ctx, getMsg.ServiceId, imageRepo.StatusCreated)
 	}
 }

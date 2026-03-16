@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"notificate/internal/config"
@@ -9,13 +10,16 @@ import (
 	imageRouter "notificate/internal/server/routers/image"
 	usecaseChat "notificate/internal/server/usecases/chat"
 	imageUC "notificate/internal/server/usecases/image"
+	"os"
+	"time"
 
 	imageRepo "notificate/internal/server/repository/image"
 	serviceRepo "notificate/internal/server/repository/service"
 	routerServices "notificate/internal/server/routers/services"
 	serviceUC "notificate/internal/server/usecases/service"
-
-	routerTasks "notificate/internal/server/routers/tasks"
+	taskRepo "notificate/internal/server/repository/task"
+	routerTask "notificate/internal/server/routers/tasks"
+	taskUC "notificate/internal/server/usecases/task"
 
 	"notificate/pkg/db"
 	"notificate/pkg/kafka"
@@ -30,11 +34,22 @@ func Run(cfg *config.Config) error {
 	ctx := context.Background()
 
 	// подключение к БД
-	connectDB, err := db.NewConnectSqliteDB(cfg.DB.Path)
+	pgDsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s",
+		cfg.Postgres.User,
+		cfg.Postgres.Pass,
+		cfg.Postgres.Host,
+		cfg.Postgres.Port,
+		cfg.Postgres.NameDB,
+	)
+	
+	pgClient, err := db.NewClient(context.Background(), 5, 3*time.Second, pgDsn, false)
 	if err != nil {
-		return err
+		slog.Error("Failed to initialize database: %v", err)
+		os.Exit(1)
 	}
-	slog.Info("Подключение к SQLite")
+	defer pgClient.Close()
+
 
 
 	// брокер сообщений
@@ -49,21 +64,22 @@ func Run(cfg *config.Config) error {
 	r := mux.NewRouter()
 
 	// фотографии
-	ImageRepo := imageRepo.NewRepositoryImage(connectDB)
+	ImageRepo := imageRepo.NewRepositoryImage(pgClient)
 	ImageUC := imageUC.NewUseCaseImage(ImageRepo, wMB)
-	imageRouter.InitRouter(r, ImageUC, wMB, clientS3, connectDB)
+	imageRouter.InitRouter(r, ImageUC, clientS3)
 
 	// услуги
-	ServiceRepo := serviceRepo.NewRepositoryService(connectDB)
+	ServiceRepo := serviceRepo.NewRepositoryService(pgClient)
 	ServiceUC := serviceUC.NewUseCaseService(ServiceRepo, wMB)
-	routerServices.InitRouter(r, ServiceUC, wMB, clientS3, connectDB)
+	routerServices.InitRouter(r, ServiceUC)
 
 	// задачи
-	routerTasks.InitRouter(r)
-	
+	TaskRepo := taskRepo.NewRepositoryTask(pgClient)
+	TaskUC := taskUC.NewUseCasetask(TaskRepo, wMB)
+	routerTask.InitRouter(r, TaskUC)
 
 	// чат
-	useCaseChat := usecaseChat.NewUseCase(connectDB)
+	useCaseChat := usecaseChat.NewUseCase(pgClient)
 	routerChat.InitRouter(r, useCaseChat)
 
 	// cors

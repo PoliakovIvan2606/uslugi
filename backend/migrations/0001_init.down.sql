@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS service;
+DROP TABLE IF EXISTS generate_image;

@@ -1,0 +1,1 @@
+ALTER TABLE generate_image DROP COLUMN status;

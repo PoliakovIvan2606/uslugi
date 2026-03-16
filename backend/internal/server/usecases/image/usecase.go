@@ -8,9 +8,9 @@ import (
 
 
 type RepositoryImage interface {
-	ExistsImage(ServiceID int) (bool, error)
-	UpdateImageStatus(ServiceID int, Status string) error
-	GetStatusImage(ServiceID int) (string, error)
+	ExistsImage(ctx context.Context, ServiceID int) (bool, error)
+	UpdateImageStatus(ctx context.Context, ServiceID int, Status string) error
+	GetStatusImage(ctx context.Context, ServiceID int, Type string) (string, error)
 }
 
 type KafkaWriter interface {
@@ -26,8 +26,8 @@ func NewUseCaseImage(repo RepositoryImage, wMB KafkaWriter) *UseCaseImage {
 	return &UseCaseImage{repo: repo, wMB: wMB}
 }
 
-func(UC *UseCaseImage) GetStatusImage(ServiceID int) (string, error) {
-	status, err := UC.repo.GetStatusImage(ServiceID)
+func(UC *UseCaseImage) GetStatusImage(ctx context.Context, ServiceID int, Type string) (string, error) {
+	status, err := UC.repo.GetStatusImage(ctx, ServiceID, Type)
 	if err != nil {
 		return "", nil
 	}

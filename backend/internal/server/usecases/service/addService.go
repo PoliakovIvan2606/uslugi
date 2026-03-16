@@ -18,14 +18,14 @@ type SendMessageBroker struct {
 	Text string `json:"text"`
 }
 
-func(UC *UseCaseService) AddService(service models.AddServiceRequest) (int, error) {
-	ServiceId, err := UC.repo.AddService(service)
+func(UC *UseCaseService) AddService(ctx context.Context, service models.AddServiceRequest) (int, error) {
+	ServiceId, err := UC.repo.AddService(ctx, service)
 	if err != nil {
 		return 0, err
 	}
 
 
-	if err = UC.repo.AddStatusImage(ServiceId, imageRepo.StatusNew); err != nil {
+	if err = UC.repo.AddStatusImage(ctx, ServiceId, imageRepo.StatusNew, "service"); err != nil {
 		return 0, fmt.Errorf("ошибка добавления картинки в БД: %w", err)
 	}
 	

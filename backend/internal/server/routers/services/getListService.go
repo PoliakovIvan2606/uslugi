@@ -21,13 +21,13 @@ type GetServiceResponse struct {
 }
 
 func(router *ServiceRouter) getListService(w http.ResponseWriter, r *http.Request) {	
-	services, err := router.UC.GetAllListServices()
+	services, err := router.UC.GetAllListServices(r.Context())
 	if err != nil {
 		http.Error(w, "ошибка получения списка service"+err.Error(), http.StatusBadRequest)
 	}
 
 	out := []GetServiceResponse{}
-	for _, service := range *services {
+	for _, service := range services {
 		outService := GetServiceResponse{}
 		outService.Id = service.Id
 		outService.Title = service.Name
