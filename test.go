@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"path/filepath"
+	"context"
+	"log/slog"
 )
 
 func main() {
-	fmt.Println(filepath.Join("service", "1"))
+	slog.Log(context.Background(), slog.LevelInfo, "Hi")
 }

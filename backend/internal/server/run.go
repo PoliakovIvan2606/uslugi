@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"notificate/internal/config"
+	"notificate/internal/server/client/auth/grpc"
+	"notificate/internal/server/middleware"
 	routerChat "notificate/internal/server/routers/chat"
 	imageRouter "notificate/internal/server/routers/image"
 	usecaseChat "notificate/internal/server/usecases/chat"
@@ -15,10 +17,12 @@ import (
 
 	imageRepo "notificate/internal/server/repository/image"
 	serviceRepo "notificate/internal/server/repository/service"
-	routerServices "notificate/internal/server/routers/services"
-	serviceUC "notificate/internal/server/usecases/service"
+	chatRepo "notificate/internal/server/repository/chat"
 	taskRepo "notificate/internal/server/repository/task"
+	routerAuth "notificate/internal/server/routers/auth"
+	routerServices "notificate/internal/server/routers/services"
 	routerTask "notificate/internal/server/routers/tasks"
+	serviceUC "notificate/internal/server/usecases/service"
 	taskUC "notificate/internal/server/usecases/task"
 
 	"notificate/pkg/db"
@@ -45,12 +49,10 @@ func Run(cfg *config.Config) error {
 	
 	pgClient, err := db.NewClient(context.Background(), 5, 3*time.Second, pgDsn, false)
 	if err != nil {
-		slog.Error("Failed to initialize database: %v", err)
+		slog.Error(fmt.Sprintf("Failed to initialize database: %v", err))
 		os.Exit(1)
 	}
 	defer pgClient.Close()
-
-
 
 	// брокер сообщений
 	wMB := kafka.NewWriter(cfg.Kafka.Host, cfg.Kafka.Port, cfg.Kafka.Topic)
@@ -63,24 +65,42 @@ func Run(cfg *config.Config) error {
 	// роутер
 	r := mux.NewRouter()
 
+	// auth
+	gRPCClient, err := grpc.New(ctx, "localhost:44044", 4*time.Second, 5)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to conected gRPC: %v", err))
+		os.Exit(1)
+	}
+	slog.Info("Contected gRPC")
+
+	routerAuth.InitRouter(r, *gRPCClient)
+
+	api := r.PathPrefix("/").Subrouter() 
+	
+	api.Use(func(next http.Handler) http.Handler {
+		return middleware.AuthMiddleware(next, cfg.JWT)
+	})
+
 	// фотографии
 	ImageRepo := imageRepo.NewRepositoryImage(pgClient)
 	ImageUC := imageUC.NewUseCaseImage(ImageRepo, wMB)
-	imageRouter.InitRouter(r, ImageUC, clientS3)
+	imageRouter.InitRouter(api, ImageUC, clientS3)
 
 	// услуги
 	ServiceRepo := serviceRepo.NewRepositoryService(pgClient)
 	ServiceUC := serviceUC.NewUseCaseService(ServiceRepo, wMB)
-	routerServices.InitRouter(r, ServiceUC)
+	routerServices.InitRouter(api, ServiceUC)
 
 	// задачи
 	TaskRepo := taskRepo.NewRepositoryTask(pgClient)
 	TaskUC := taskUC.NewUseCasetask(TaskRepo, wMB)
-	routerTask.InitRouter(r, TaskUC)
+	routerTask.InitRouter(api, TaskUC)
 
 	// чат
-	useCaseChat := usecaseChat.NewUseCase(pgClient)
-	routerChat.InitRouter(r, useCaseChat)
+	repoChat := chatRepo.NewRepositoryChat(pgClient)
+	useCaseChat := usecaseChat.NewUseCase(repoChat)
+	routerChat.InitRouter(api, useCaseChat)
+	
 
 	// cors
 	c := cors.New(cors.Options{

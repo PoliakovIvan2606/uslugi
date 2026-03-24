@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { LogIn, Mail, Lock } from 'lucide-react';
+import { api } from '../utils/api';
 
 interface LoginProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, userId: string) => void;
   onSwitchToRegister: () => void;
   onCancel: () => void;
 }
@@ -11,8 +12,9 @@ export function Login({ onLogin, onSwitchToRegister, onCancel }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -21,7 +23,22 @@ export function Login({ onLogin, onSwitchToRegister, onCancel }: LoginProps) {
       return;
     }
 
-    onLogin(email, password);
+    setIsLoading(true);
+    
+    try {
+      const response = await api.login(email, password);
+      
+      if (response.Token) {
+        // Token is already saved in api.login
+        // Extract userId from token or just pass email as identifier
+        onLogin(email, email); // Using email as userId for now
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(error.message || 'Ошибка входа. Проверьте email и пароль.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,9 +89,10 @@ export function Login({ onLogin, onSwitchToRegister, onCancel }: LoginProps) {
 
           <button
             type="submit"
-            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={isLoading}
+            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Войти
+            {isLoading ? 'Вход...' : 'Войти'}
           </button>
         </form>
 

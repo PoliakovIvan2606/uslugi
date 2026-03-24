@@ -12,7 +12,7 @@ import { Register } from './components/Register';
 import { Profile } from './components/Profile';
 import { MyListingsTab } from './components/MyListingsTab';
 import { Plus, Briefcase, ListTodo, MessageCircle, User as UserIcon, Lightbulb } from 'lucide-react';
-import { api } from './utils/api';
+import { api, tokenManager } from './utils/api';
 
 export interface Service {
   id: string;
@@ -67,10 +67,9 @@ export interface Chat {
 }
 
 interface User {
-  name: string;
   email: string;
-  phone?: string;
-  password: string;
+  userId: string;
+  name: string;
 }
 
 export default function App() {
@@ -89,11 +88,53 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authView, setAuthView] = useState<'login' | 'register' | null>(null);
   const [showProfile, setShowProfile] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
+
+  // Check for existing token on mount
+  useEffect(() => {
+    const token = tokenManager.getToken();
+    const savedUser = localStorage.getItem('currentUser');
+    
+    if (token && savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error('Error parsing saved user:', error);
+        tokenManager.clearToken();
+        localStorage.removeItem('currentUser');
+      }
+    }
+  }, []);
+
+  // Listen for unauthorized events
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setCurrentUser(null);
+      localStorage.removeItem('currentUser');
+      setAuthView('login');
+      alert('Сессия истекла. Пожалуйста, войдите снова.');
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
+  }, []);
 
   // Load data from API
   useEffect(() => {
     const loadData = async () => {
+      // Check if we need auth for viewing services and tasks
+      // If no token exists, we might get 401 error
+      const token = tokenManager.getToken();
+      
+      if (!token) {
+        // No token, but we can still try to load data
+        // If backend requires auth, user will need to login first
+        setIsLoading(false);
+        return;
+      }
+      
       setIsLoading(true);
       try {
         const [servicesData, tasksData] = await Promise.all([
@@ -113,74 +154,53 @@ export default function App() {
     };
 
     loadData();
-  }, []);
+  }, [currentUser]); // Re-load when user changes
 
-  // Load users from localStorage
-  useEffect(() => {
-    const savedUsers = localStorage.getItem('users');
-    if (savedUsers) {
-      setUsers(JSON.parse(savedUsers));
-    }
-    const savedCurrentUser = localStorage.getItem('currentUser');
-    if (savedCurrentUser) {
-      setCurrentUser(JSON.parse(savedCurrentUser));
-    }
-  }, []);
-
-  const handleLogin = (email: string, password: string) => {
-    const user = users.find(u => u.email === email && u.password === password);
-    if (user) {
-      const { password: _, ...userWithoutPassword } = user;
-      setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      setAuthView(null);
-    } else {
-      alert('Неверный email или пароль');
-    }
-  };
-
-  const handleRegister = (name: string, email: string, password: string, phone?: string) => {
-    // Check if user already exists
-    if (users.some(u => u.email === email)) {
-      alert('Пользователь с таким email уже существует');
-      return;
-    }
-
-    const newUser: User = { name, email, password, phone };
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    
+  const handleLogin = (email: string, userId: string) => {
+    const newUser: User = { 
+      email, 
+      userId, 
+      name: email.split('@')[0] // Временное имя из email
+    };
     setCurrentUser(newUser);
     localStorage.setItem('currentUser', JSON.stringify(newUser));
     setAuthView(null);
   };
 
+  const handleRegister = (email: string, userId: string) => {
+    const newUser: User = { 
+      email, 
+      userId, 
+      name: email.split('@')[0] 
+    };
+    setCurrentUser(newUser);
+    localStorage.setItem('currentUser', JSON.stringify(newUser));
+    setAuthView(null);
+  };
   const handleLogout = () => {
     setCurrentUser(null);
+    tokenManager.clearToken();
     localStorage.removeItem('currentUser');
     setShowProfile(false);
   };
 
-  const handleUpdateUser = (updatedUser: Omit<User, 'password'>) => {
+  const handleUpdateUser = (updatedData: Partial<User>) => {
     if (!currentUser) return;
     
-    const newUser = { ...currentUser, ...updatedUser };
+    const newUser = { ...currentUser, ...updatedData };
     setCurrentUser(newUser);
     localStorage.setItem('currentUser', JSON.stringify(newUser));
-    
-    const updatedUsers = users.map(u => u.email === currentUser.email ? newUser : u);
-    setUsers(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
   };
 
   const handleDeleteService = (serviceId: string) => {
+    // Добавляем window. перед confirm
     if (window.confirm('Вы уверены, что хотите удалить эту услугу?')) {
       setServices(services.filter(s => s.id !== serviceId));
     }
   };
 
   const handleDeleteTask = (taskId: string) => {
+    // Добавляем window. перед confirm
     if (window.confirm('Вы уверены, что хотите удалить эту задачу?')) {
       setTasks(tasks.filter(t => t.id !== taskId));
     }
@@ -197,7 +217,7 @@ export default function App() {
       ...service,
       id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0],
-      author: currentUser.name
+      author: currentUser.email
     };
     setServices([newService, ...services]);
     setShowServiceModal(false);
@@ -246,7 +266,7 @@ export default function App() {
       ...task,
       id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0],
-      author: currentUser.name
+      author: currentUser.email
     };
     setTasks([newTask, ...tasks]);
     setShowTaskModal(false);
@@ -305,7 +325,7 @@ export default function App() {
     // Создаем новый чат
     const newChat: Chat = {
       id: Date.now().toString(),
-      participants: [currentUser.name, participantName],
+      participants: [currentUser.email, participantName],
       itemTitle,
       itemType,
       messages: []
@@ -322,7 +342,7 @@ export default function App() {
     const newMessage: Message = {
       id: Date.now().toString(),
       chatId,
-      senderId: currentUser.name,
+      senderId: currentUser.email,
       text,
       timestamp: new Date().toISOString()
     };
@@ -402,9 +422,16 @@ export default function App() {
   }
 
   // Show profile
-  if (showProfile && currentUser) {
-    const userServices = services.filter(s => s.author === currentUser.name);
-    const userTasks = tasks.filter(t => t.author === currentUser.name);
+  if (showProfile) {
+    if (!currentUser) {
+      // Redirect to login if not logged in
+      setShowProfile(false);
+      setAuthView('login');
+      return null;
+    }
+    
+    const userServices = services.filter(s => s.author === currentUser.email);
+    const userTasks = tasks.filter(t => t.author === currentUser.email);
 
     return (
       <Profile
@@ -450,13 +477,23 @@ export default function App() {
                 <Plus className="w-5 h-5" />
                 Добавить задачу
               </button>
-              <button
-                onClick={() => setShowProfile(true)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-              >
-                <UserIcon className="w-5 h-5" />
-                Профиль
-              </button>
+              {currentUser ? (
+                <button
+                  onClick={() => setShowProfile(true)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                >
+                  <UserIcon className="w-5 h-5" />
+                  {currentUser.email}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setAuthView('login')}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                >
+                  <UserIcon className="w-5 h-5" />
+                  Войти
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -542,8 +579,8 @@ export default function App() {
           />
         ) : activeTab === 'myListings' ? (
           <MyListingsTab
-            userServices={currentUser ? services.filter(s => s.author === currentUser.name) : []}
-            userTasks={currentUser ? tasks.filter(t => t.author === currentUser.name) : []}
+            userServices={currentUser ? services.filter(s => s.author === currentUser.email) : []}
+            userTasks={currentUser ? tasks.filter(t => t.author === currentUser.email) : []}
             allServices={services}
             allTasks={tasks}
             onStartChat={handleStartChat}
@@ -557,14 +594,14 @@ export default function App() {
                 chats={chats}
                 activeChatId={activeChatId}
                 onSelectChat={handleSelectChat}
-                currentUser={currentUser?.name || ''}
+                currentUser={currentUser?.email || ''}
               />
             </div>
             <div className="lg:col-span-2">
               {activeChat ? (
                 <ChatWindow
                   chat={activeChat}
-                  currentUser={currentUser?.name || ''}
+                  currentUser={currentUser?.email || ''}
                   onSendMessage={handleSendMessage}
                 />
               ) : (

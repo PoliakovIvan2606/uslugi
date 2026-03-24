@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { UserPlus, Mail, Lock, User } from 'lucide-react';
+import { api } from '../utils/api';
 
 interface RegisterProps {
-  onRegister: (name: string, email: string, password: string, phone?: string) => void;
+  onRegister: (email: string, userId: string) => void;
   onSwitchToLogin: () => void;
   onCancel: () => void;
 }
@@ -14,18 +15,19 @@ export function Register({ onRegister, onSwitchToLogin, onCancel }: RegisterProp
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!name || !email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword) {
       setError('Заполните все обязательные поля');
       return;
     }
 
-    if (password.length < 6) {
-      setError('Пароль должен содержать минимум 6 символов');
+    if (password.length < 4) {
+      setError('Пароль должен содержать минимум 4 символа');
       return;
     }
 
@@ -34,7 +36,25 @@ export function Register({ onRegister, onSwitchToLogin, onCancel }: RegisterProp
       return;
     }
 
-    onRegister(name, email, password, phone);
+    setIsLoading(true);
+    
+    try {
+      const response = await api.register(email, password);
+      
+      if (response.UserId) {
+        // After registration, automatically login
+        const loginResponse = await api.login(email, password);
+        
+        if (loginResponse.Token) {
+          onRegister(email, response.UserId);
+        }
+      }
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      setError(error.message || 'Ошибка регистрации. Попробуйте другой email.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,21 +76,6 @@ export function Register({ onRegister, onSwitchToLogin, onCancel }: RegisterProp
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-gray-700 mb-2">Имя *</label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Ваше имя"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
             <label className="block text-gray-700 mb-2">Email *</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -86,17 +91,6 @@ export function Register({ onRegister, onSwitchToLogin, onCancel }: RegisterProp
           </div>
 
           <div>
-            <label className="block text-gray-700 mb-2">Телефон</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="+7 (999) 123-45-67"
-            />
-          </div>
-
-          <div>
             <label className="block text-gray-700 mb-2">Пароль *</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -109,7 +103,7 @@ export function Register({ onRegister, onSwitchToLogin, onCancel }: RegisterProp
                 required
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">Минимум 6 символов</p>
+            <p className="text-xs text-gray-500 mt-1">Минимум 4 символа</p>
           </div>
 
           <div>
@@ -129,9 +123,10 @@ export function Register({ onRegister, onSwitchToLogin, onCancel }: RegisterProp
 
           <button
             type="submit"
-            className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            disabled={isLoading}
+            className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Зарегистрироваться
+            {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
           </button>
         </form>
 

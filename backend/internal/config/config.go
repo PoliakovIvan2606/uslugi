@@ -1,12 +1,15 @@
 package config
 
-import "github.com/ilyakaznacheev/cleanenv"
+import (
+	"github.com/ilyakaznacheev/cleanenv"
+)
 
 type Config struct {
 	Server   Server   `yaml:"server"`
 	Postgres Postgres `yaml:"postgres"`
 	Kafka    Kafka    `yaml:"kafka"`
 	S3       S3       `yaml:"s3"`
+	JWT		 JWT 	  `yaml:"jwt"`
 }
 
 type Server struct {
@@ -33,6 +36,11 @@ type Kafka struct {
 	Host  string `yaml:"host" env:"KAFKA_HOST" env-default:"localhost"`
 	Topic string `yaml:"topic" env:"KAFKA_TOPIC" env-default:"test"`
 }
+
+type JWT struct {
+	Secret string `yaml:"secret" env:"JWT_SECRET"` 
+}
+
 
 func Init(path string) (*Config, error) {
 	var cfg Config

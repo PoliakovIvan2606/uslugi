@@ -12,7 +12,7 @@ type addMessageResponse struct {
 }
 
 func(router *ChatRouter) addMessage(w http.ResponseWriter, r *http.Request) {
-	in := models.AddMessageRequest{}
+	in := models.Message{}
 
 	// Парсим JSON из body в структуру
     if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -25,7 +25,7 @@ func(router *ChatRouter) addMessage(w http.ResponseWriter, r *http.Request) {
         return
 	}
 
-	messageId, err := router.UC.AddMessage(&in)
+	messageId, err := router.UC.AddMessage(r.Context(), &in)
 	if err != nil {
 		http.Error(w, "Ошибка usecase addMessage: "+err.Error(), http.StatusBadRequest)
         return

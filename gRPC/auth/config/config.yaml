@@ -3,4 +3,4 @@ ggRPCc:
   host: localhost
   timeout: 10h
 jwt:
-  token_ttl: 1h
+  token_ttl: 24h
