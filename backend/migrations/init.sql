@@ -1,5 +1,6 @@
 CREATE TABLE service (
     id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE, 
     name TEXT NOT NULL,
     short_description TEXT NOT NULL,
     all_description TEXT,
@@ -14,6 +15,7 @@ CREATE TABLE service (
 
 CREATE TABLE tasks (
     id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE, 
     title TEXT NOT NULL,
     short_description TEXT NOT NULL,
     all_description TEXT,
@@ -48,6 +50,27 @@ CREATE TABLE chats (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_chat_pair UNIQUE (user_id1, user_id2)
 );
+
+CREATE TABLE chats (
+    id SERIAL PRIMARY KEY,
+    user_id1 INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id2 INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- ID записи из таблицы service или tasks
+    entity_id INT NOT NULL,
+    -- Тип сущности: строго либо 'service', либо 'task'
+    entity_type TEXT NOT NULL CHECK (entity_type IN ('service', 'task')),
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Ограничение, чтобы нельзя было создать два чата между теми же людьми 
+    -- по одному и тому же объявлению
+    CONSTRAINT unique_chat_per_entity UNIQUE (user_id1, user_id2, entity_id, entity_type),
+    
+    -- Проверка, чтобы пользователь не создавал чат сам с собой
+    CONSTRAINT check_different_users CHECK (user_id1 != user_id2)
+);
+
 
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,

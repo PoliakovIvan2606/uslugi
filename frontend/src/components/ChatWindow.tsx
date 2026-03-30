@@ -6,9 +6,10 @@ interface ChatWindowProps {
   chat: Chat;
   currentUser: string;
   onSendMessage: (chatId: string, text: string) => void;
+  currentUserId?: string;
 }
 
-export function ChatWindow({ chat, currentUser, onSendMessage }: ChatWindowProps) {
+export function ChatWindow({ chat, currentUser, onSendMessage, currentUserId }: ChatWindowProps) {
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -62,10 +63,14 @@ export function ChatWindow({ chat, currentUser, onSendMessage }: ChatWindowProps
           </div>
         ) : (
           chat.messages.map(message => {
-            const isCurrentUser = message.senderId === currentUser;
+            // Check if the message is from current user using userId
+            const isCurrentUser = currentUserId 
+              ? message.userId === parseInt(currentUserId)
+              : message.userId.toString() === currentUser;
+            
             return (
               <div
-                key={message.id}
+                key={message.messageId || message.id}
                 className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
               >
                 <div
@@ -75,13 +80,13 @@ export function ChatWindow({ chat, currentUser, onSendMessage }: ChatWindowProps
                       : 'bg-gray-100 text-gray-900'
                   }`}
                 >
-                  <p className="break-words">{message.text}</p>
+                  <p className="break-words">{message.message}</p>
                   <span
                     className={`text-xs mt-1 block ${
                       isCurrentUser ? 'text-purple-200' : 'text-gray-500'
                     }`}
                   >
-                    {new Date(message.timestamp).toLocaleTimeString('ru-RU', {
+                    {new Date(message.sentAt).toLocaleTimeString('ru-RU', {
                       hour: '2-digit',
                       minute: '2-digit'
                     })}

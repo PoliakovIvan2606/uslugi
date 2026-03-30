@@ -7,6 +7,7 @@ import (
 
 type GetTaskResponse struct {
 	Id string `json:"id"`
+	UserId int `json:"userId"`
 	Title string `json:"title"`
 	Description string `json:"description"`
 	FullDescription string `json:"fullDescription"`
@@ -31,6 +32,7 @@ func(router *TaskRouter) getListTask(w http.ResponseWriter, r *http.Request) {
 	for _, task := range tasks {
 		outtask := GetTaskResponse{}
 		outtask.Id = task.Id
+		outtask.UserId = task.UserId
 		outtask.Title = task.Title
 		outtask.Description = task.ShortDescription
 		outtask.FullDescription = task.AllDescription

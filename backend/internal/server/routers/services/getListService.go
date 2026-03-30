@@ -8,6 +8,7 @@ import (
 
 type GetServiceResponse struct {
 	Id string `json:"id"`
+	UserId int `json:"userId"`
 	Title string `json:"title"`
 	Description string `json:"description"`
 	FullDescription string `json:"fullDescription"`
@@ -31,6 +32,7 @@ func(router *ServiceRouter) getListService(w http.ResponseWriter, r *http.Reques
 		outService := GetServiceResponse{}
 		outService.Id = service.Id
 		outService.Title = service.Name
+		outService.UserId = service.UserId
 		outService.Description = service.ShortDescription
 		outService.FullDescription = service.AllDescription
 		outService.Category = service.Category

@@ -3,6 +3,7 @@ package tasks
 import (
 	"encoding/json"
 	"net/http"
+	"notificate/internal/server/middleware"
 	models "notificate/internal/server/models/task"
 	"notificate/pkg/handler"
 )
@@ -24,6 +25,14 @@ func(roter *TaskRouter) addTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Ошибка валидации: "+err.Error(), http.StatusBadRequest)
         return
 	}
+
+
+	userId, ok := r.Context().Value(middleware.KeyUid).(int)
+	if !ok {
+		http.Error(w, "Пользователь не авторизован", http.StatusUnauthorized)
+        return
+	}
+	in.UserId = userId
 
 	ServiceId, err := roter.UC.AddTask(r.Context(), in)
 	if err != nil {

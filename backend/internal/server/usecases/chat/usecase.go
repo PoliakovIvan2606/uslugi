@@ -9,6 +9,7 @@ type RepositoryChat interface {
 	AddChat(ctx context.Context, in *models.AddChat) (ChatId int, err error)
 	AddMessage(ctx context.Context, in *models.Message) (MessageId int, err error)
 	GetMessages(ctx context.Context, chatId, limit int) (messages []models.Message, err error)
+	GetChats(ctx context.Context, userId int) (chats []models.GetChats, err error)
 }
 
 type UseCaseChat struct {
@@ -42,4 +43,13 @@ func(uc *UseCaseChat) GetMessages(ctx context.Context, chatId, limit int) (messa
 	}
 
 	return messages, nil
+}
+
+func(uc *UseCaseChat) GetChats(ctx context.Context, userId int) (chats []models.GetChats, err error) {
+	chats, err = uc.repo.GetChats(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	return chats, nil
 }

@@ -7,6 +7,7 @@ import (
 var ErrEmptyField = errors.New("поле не должно быть нулевым")
 
 type AddServiceRequest struct {
+	UserId           int    `json:"-"` 
 	Name string `json:"name"`
 	ShortDescription string `json:"shortDescription"`
 	AllDescription string `json:"allDescription"`
@@ -20,6 +21,7 @@ type AddServiceRequest struct {
 	GenerateImage bool `json:"generateImage"`
 }
 
+
 // TODO надо написать тесты
 func(in *AddServiceRequest) Validate() error {
 	if in.Name == "" || in.ShortDescription == "" || in.Category == "" || 
@@ -32,6 +34,7 @@ func(in *AddServiceRequest) Validate() error {
 
 type GetService struct {
 	Id string `json:"id"`
+	UserId           int    `json:"userId"` 
 	Name string `json:"name"`
 	ShortDescription string `json:"shortDescription"`
 	AllDescription string `json:"allDescription"`

@@ -3,6 +3,7 @@ package chat
 import (
 	"encoding/json"
 	"net/http"
+	"notificate/internal/server/middleware"
 	models "notificate/internal/server/models/chat"
 	"notificate/pkg/handler"
 )
@@ -24,6 +25,13 @@ func(router *ChatRouter) addMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Ошибка валидации: "+err.Error(), http.StatusBadRequest)
         return
 	}
+		
+	userId, ok := r.Context().Value(middleware.KeyUid).(int)
+	if !ok {
+		http.Error(w, "Ошибка авторизации", http.StatusBadRequest)
+        return
+	}
+	in.UserId = userId
 
 	messageId, err := router.UC.AddMessage(r.Context(), &in)
 	if err != nil {

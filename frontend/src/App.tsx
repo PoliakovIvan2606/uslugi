@@ -16,6 +16,7 @@ import { api, tokenManager } from './utils/api';
 
 export interface Service {
   id: string;
+  userId: number;
   title: string;
   description: string;
   category: string;
@@ -33,6 +34,7 @@ export interface Service {
 
 export interface Task {
   id: string;
+  userId: number;
   title: string;
   description: string;
   category: string;
@@ -49,15 +51,17 @@ export interface Task {
 }
 
 export interface Message {
-  id: string;
-  chatId: string;
-  senderId: string;
-  text: string;
-  timestamp: string;
+  id?: string;
+  messageId?: number;
+  chatId: number;
+  userId: number;
+  message: string;
+  sentAt: string;
 }
 
 export interface Chat {
   id: string;
+  serverChatId?: number; // ID чата на сервере
   participants: string[];
   itemTitle: string;
   itemType: 'service' | 'task';
@@ -101,7 +105,11 @@ export default function App() {
         console.error('Error parsing saved user:', error);
         tokenManager.clearToken();
         localStorage.removeItem('currentUser');
+        setAuthView('login'); // Redirect to login if error
       }
+    } else {
+      // No token or user - redirect to login
+      setAuthView('login');
     }
   }, []);
 
@@ -144,6 +152,11 @@ export default function App() {
         
         setServices(servicesData);
         setTasks(tasksData);
+
+        // Load chats if user is logged in
+        if (currentUser) {
+          await loadChats();
+        }
       } catch (error) {
         console.error('Error loading data:', error);
         setServices([]);
@@ -155,6 +168,44 @@ export default function App() {
 
     loadData();
   }, [currentUser]); // Re-load when user changes
+
+  // Load chats from server
+  const loadChats = async () => {
+    if (!currentUser) return;
+
+    try {
+      const chatsData = await api.getChats();
+      
+      // Transform server chats to local Chat format
+      const loadedChats = await Promise.all(
+        chatsData.map(async (chatData) => {
+          // Load last few messages for preview
+          const messagesResponse = await api.getMessages(chatData.chatId, 5);
+          const messages = messagesResponse.Messages || [];
+
+          // Determine item title and type from messages context (for now use placeholder)
+          // In production, you might want to store this in the chat metadata
+          const lastMessage = messages.length > 0 ? messages[messages.length - 1].message : undefined;
+          const lastMessageTime = messages.length > 0 ? messages[messages.length - 1].sentAt : undefined;
+
+          return {
+            id: chatData.chatId.toString(),
+            serverChatId: chatData.chatId,
+            participants: [currentUser.email, chatData.email],
+            itemTitle: 'Общий чат', // Placeholder - можно улучшить
+            itemType: 'service' as const, // Placeholder
+            messages: messages,
+            lastMessage,
+            lastMessageTime
+          };
+        })
+      );
+
+      setChats(loadedChats);
+    } catch (error) {
+      console.error('Error loading chats:', error);
+    }
+  };
 
   const handleLogin = (email: string, userId: string) => {
     const newUser: User = { 
@@ -177,6 +228,7 @@ export default function App() {
     localStorage.setItem('currentUser', JSON.stringify(newUser));
     setAuthView(null);
   };
+
   const handleLogout = () => {
     setCurrentUser(null);
     tokenManager.clearToken();
@@ -193,15 +245,13 @@ export default function App() {
   };
 
   const handleDeleteService = (serviceId: string) => {
-    // Добавляем window. перед confirm
-    if (window.confirm('Вы уверены, что хотите удалить эту услугу?')) {
+    if (confirm('Вы уверены, что хотите удалить эту услугу?')) {
       setServices(services.filter(s => s.id !== serviceId));
     }
   };
 
   const handleDeleteTask = (taskId: string) => {
-    // Добавляем window. перед confirm
-    if (window.confirm('Вы уверены, что хотите удалить эту задачу?')) {
+    if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
       setTasks(tasks.filter(t => t.id !== taskId));
     }
   };
@@ -217,7 +267,8 @@ export default function App() {
       ...service,
       id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0],
-      author: currentUser.email
+      author: currentUser.email,
+      userId: parseInt(currentUser.userId)
     };
     setServices([newService, ...services]);
     setShowServiceModal(false);
@@ -266,7 +317,8 @@ export default function App() {
       ...task,
       id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0],
-      author: currentUser.email
+      author: currentUser.email,
+      userId: parseInt(currentUser.userId)
     };
     setTasks([newTask, ...tasks]);
     setShowTaskModal(false);
@@ -304,10 +356,32 @@ export default function App() {
     }
   };
 
-  const handleStartChat = (participantName: string, itemTitle: string, itemType: 'service' | 'task') => {
+  const handleStartChat = async (participantName: string, itemTitle: string, itemType: 'service' | 'task') => {
     if (!currentUser) {
       alert('Войдите в аккаунт, чтобы начать общение');
       setAuthView('login');
+      return;
+    }
+
+    // Получаем userId автора объявления
+    let authorUserId: number | undefined;
+    
+    if (itemType === 'service') {
+      const service = services.find(s => s.title === itemTitle || s.author === participantName);
+      authorUserId = service?.userId;
+    } else {
+      const task = tasks.find(t => t.title === itemTitle || t.author === participantName);
+      authorUserId = task?.userId;
+    }
+
+    if (!authorUserId) {
+      alert('Не удалось определить получателя сообщения');
+      return;
+    }
+
+    // Проверяем, не пытается ли пользователь начать чат с самим собой
+    if (authorUserId === parseInt(currentUser.userId)) {
+      alert('Вы не можете начать чат со своим объявлением');
       return;
     }
 
@@ -322,46 +396,103 @@ export default function App() {
       return;
     }
 
-    // Создаем новый чат
-    const newChat: Chat = {
-      id: Date.now().toString(),
-      participants: [currentUser.email, participantName],
-      itemTitle,
-      itemType,
-      messages: []
-    };
+    try {
+      // Создаем чат на сервере
+      const response = await api.createChat(authorUserId.toString());
 
-    setChats([newChat, ...chats]);
-    setActiveChatId(newChat.id);
-    setActiveTab('chats');
+      // Создаем новый чат локально
+      const newChat: Chat = {
+        id: Date.now().toString(),
+        serverChatId: response.chat_id,
+        participants: [currentUser.email, participantName],
+        itemTitle,
+        itemType,
+        messages: []
+      };
+
+      setChats([newChat, ...chats]);
+      setActiveChatId(newChat.id);
+      setActiveTab('chats');
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      alert('Ошибка при создании чата');
+    }
   };
 
-  const handleSendMessage = (chatId: string, text: string) => {
+  const handleSendMessage = async (chatId: string, text: string) => {
     if (!currentUser) return;
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      chatId,
-      senderId: currentUser.email,
-      text,
-      timestamp: new Date().toISOString()
-    };
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat || !chat.serverChatId) {
+      console.error('Chat not found or no server chat ID');
+      return;
+    }
 
-    setChats(chats.map(chat => {
-      if (chat.id === chatId) {
-        return {
-          ...chat,
-          messages: [...chat.messages, newMessage],
-          lastMessage: text,
-          lastMessageTime: newMessage.timestamp
-        };
-      }
-      return chat;
-    }));
+    try {
+      const messageData = {
+        userId: parseInt(currentUser.userId),
+        chatId: chat.serverChatId,
+        message: text,
+        sentAt: new Date().toISOString()
+      };
+
+      // Send message to server
+      const response = await api.sendMessage(messageData);
+
+      // Add message to local state
+      const newMessage: Message = {
+        messageId: response.messageId,
+        chatId: chat.serverChatId,
+        userId: parseInt(currentUser.userId),
+        message: text,
+        sentAt: messageData.sentAt
+      };
+
+      setChats(chats.map(c => {
+        if (c.id === chatId) {
+          return {
+            ...c,
+            messages: [...c.messages, newMessage],
+            lastMessage: text,
+            lastMessageTime: newMessage.sentAt
+          };
+        }
+        return c;
+      }));
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Ошибка при отправке сообщения');
+    }
   };
 
   const handleSelectChat = (chatId: string) => {
     setActiveChatId(chatId);
+    
+    // Load all messages for this chat
+    loadChatMessages(chatId);
+  };
+
+  // Load all messages for a specific chat
+  const loadChatMessages = async (chatId: string) => {
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat || !chat.serverChatId) return;
+
+    try {
+      const messagesResponse = await api.getMessages(chat.serverChatId, 100);
+      const messages = messagesResponse.Messages || [];
+
+      setChats(prevChats => prevChats.map(c => {
+        if (c.id === chatId) {
+          return {
+            ...c,
+            messages: messages
+          };
+        }
+        return c;
+      }));
+    } catch (error) {
+      console.error('Error loading chat messages:', error);
+    }
   };
 
   const activeChat = chats.find(chat => chat.id === activeChatId);
@@ -406,7 +537,6 @@ export default function App() {
       <Login
         onLogin={handleLogin}
         onSwitchToRegister={() => setAuthView('register')}
-        onCancel={() => setAuthView(null)}
       />
     );
   }
@@ -416,7 +546,6 @@ export default function App() {
       <Register
         onRegister={handleRegister}
         onSwitchToLogin={() => setAuthView('login')}
-        onCancel={() => setAuthView(null)}
       />
     );
   }
@@ -602,6 +731,7 @@ export default function App() {
                 <ChatWindow
                   chat={activeChat}
                   currentUser={currentUser?.email || ''}
+                  currentUserId={currentUser?.userId}
                   onSendMessage={handleSendMessage}
                 />
               ) : (

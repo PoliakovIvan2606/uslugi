@@ -21,14 +21,15 @@ func NewRepositoryService(Db *pgxpool.Pool) *RepositoryService {
 
 func (rep *RepositoryService) AddService(ctx context.Context, s models.AddServiceRequest) (int, error) {
 	query := `INSERT INTO service
-			(name, short_description, all_description, category, 
+			(name, user_id, short_description, all_description, category, 
 			price, name_specialist, experience, phone, email, location) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
 
 	var id int
 	
 	err := rep.Db.QueryRow(ctx, query,
 		s.Name,
+		s.UserId,
 		s.ShortDescription,
 		s.AllDescription,
 		s.Category,
@@ -59,7 +60,7 @@ func (rep *RepositoryService) AddStatusImage(ctx context.Context, ServiceID int,
 }
 
 func (repo *RepositoryService) GetAllListServices(ctx context.Context) ([]models.GetService, error) {
-	query := `SELECT id, name, short_description, all_description, 
+	query := `SELECT id, user_id, name, short_description, all_description, 
 	category, price, name_specialist, experience, phone, email,
 	location FROM service`
 
@@ -73,7 +74,7 @@ func (repo *RepositoryService) GetAllListServices(ctx context.Context) ([]models
 	for rows.Next() {
 		var s models.GetService
 		err := rows.Scan(
-			&s.Id, &s.Name, &s.ShortDescription,
+			&s.Id, &s.UserId, &s.Name, &s.ShortDescription,
 			&s.AllDescription, &s.Category, &s.Price,
 			&s.NameSpecialist, &s.Experience, &s.Phone,
 			&s.Email, &s.Location,

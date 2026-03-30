@@ -9,6 +9,7 @@ var ErrEmptyField = errors.New("поле не должно быть нулевы
 
 type AddTaskRequest struct {
 	Name string `json:"name"`
+	UserId int `json:"-"`
 	ShortDescription string `json:"shortDescription"`
 	AllDescription string `json:"allDescription"`
 	Category string `json:"category"`
@@ -34,6 +35,7 @@ func(in *AddTaskRequest) Validate() error {
 
 type GetTask struct {
 	Id string `json:"id"`
+	UserId int `json:"userId"`
 	Title string `json:"title"`
 	ShortDescription string `json:"shortDescription"`
 	AllDescription string `json:"allDescription"`

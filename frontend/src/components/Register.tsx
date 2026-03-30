@@ -5,10 +5,9 @@ import { api } from '../utils/api';
 interface RegisterProps {
   onRegister: (email: string, userId: string) => void;
   onSwitchToLogin: () => void;
-  onCancel: () => void;
 }
 
-export function Register({ onRegister, onSwitchToLogin, onCancel }: RegisterProps) {
+export function Register({ onRegister, onSwitchToLogin }: RegisterProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -140,15 +139,6 @@ export function Register({ onRegister, onSwitchToLogin, onCancel }: RegisterProp
               Войти
             </button>
           </p>
-        </div>
-
-        <div className="mt-4 text-center">
-          <button
-            onClick={onCancel}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            Продолжить без регистрации
-          </button>
         </div>
       </div>
     </div>

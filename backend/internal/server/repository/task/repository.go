@@ -22,14 +22,15 @@ func NewRepositoryTask(Db *pgxpool.Pool) *RepositoryTask {
 
 func (rep *RepositoryTask) AddTask(ctx context.Context, s models.AddTaskRequest) (int, error) {
 	query := `INSERT INTO tasks
-			(title, short_description, all_description, category, budget,
+			(title, user_id, short_description, all_description, category, budget,
 			author, deadline, phone, email, location, requirements) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`
 
 	var id int
 
 	err := rep.Db.QueryRow(ctx, query,
 		s.NameCustomer,
+		s.UserId,
 		s.ShortDescription,
 		s.AllDescription,
 		s.Category,
@@ -61,7 +62,7 @@ func (rep *RepositoryTask) AddStatusImage(ctx context.Context, taskID int, Statu
 }
 
 func (repo *RepositoryTask) GetAllListTasks(ctx context.Context) ([]models.GetTask, error) {
-	query := `SELECT id, title, short_description, all_description, 
+	query := `SELECT id, user_id, title, short_description, all_description, 
     category, budget, author, date::TEXT, deadline::TEXT, phone, email,
     location, requirements FROM tasks`
 
@@ -76,7 +77,7 @@ func (repo *RepositoryTask) GetAllListTasks(ctx context.Context) ([]models.GetTa
 		var s models.GetTask
 
 		err := rows.Scan(
-			&s.Id, &s.Title, &s.ShortDescription,
+			&s.Id, &s.UserId, &s.Title, &s.ShortDescription,
 			&s.AllDescription, &s.Category, &s.Budget,
 			&s.Author, &s.Date, &s.Deadline, &s.Phone,
 			&s.Email, &s.Location, &s.Requirements,

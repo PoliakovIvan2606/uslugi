@@ -274,5 +274,88 @@ export const api = {
   // Get image URL for task
   getTaskImageUrl(id: string): string {
     return `${API_BASE_URL}/task/getImage/${id}`;
+  },
+
+  // Chat functions
+  // Create a new chat with a user
+  async createChat(userId: string): Promise<{ chat_id: number }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat/addChat?userId=${userId}`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+
+      await handleResponse(response);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      throw error;
+    }
+  },
+
+  // Send a message in a chat
+  async sendMessage(messageData: {
+    userId: number;
+    chatId: number;
+    message: string;
+    sentAt: string;
+  }): Promise<{ messageId: number }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat/addMessage`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(messageData),
+      });
+
+      await handleResponse(response);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  },
+
+  // Get messages from a chat
+  async getMessages(chatId: number, limit: number = 50): Promise<{
+    Messages: Array<{
+      userId: number;
+      chatId: number;
+      message: string;
+      sentAt: string;
+    }>
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat/getMessages?chatId=${chatId}&limit=${limit}`, {
+        headers: getHeaders(),
+      });
+
+      await handleResponse(response);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error getting messages:', error);
+      throw error;
+    }
+  },
+
+  // Get all chats for current user
+  async getChats(): Promise<Array<{
+    chatId: number;
+    email: string;
+  }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat/getChats`, {
+        headers: getHeaders(),
+      });
+
+      await handleResponse(response);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error getting chats:', error);
+      throw error;
+    }
   }
 };
