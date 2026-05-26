@@ -35,14 +35,18 @@ func (r *RepositoryAuth) SaveUser (ctx context.Context, email string, passHash [
 	
 	err = r.Db.QueryRow(ctx, query, email, passHash).Scan(&id)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" {
-				return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
-			}
-		}
-		return 0, fmt.Errorf("%s: %w", op, err)
-	}
+    var pgErr *pgconn.PgError
+    if errors.As(err, &pgErr) {
+        // Проверяем код уникальности И конкретное имя ограничения для email
+        if pgErr.Code == "23505" && pgErr.ConstraintName == "users_email_key" {
+            return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
+        }
+    }
+    // Если сломался автоинкремент (users_pkey), ошибка уйдет сюда как системная,
+    // и вы сразу увидите её настоящий текст в логах бэкенда!
+    return 0, fmt.Errorf("%s: %w", op, err)
+}
+
 
 	return id, nil
 }

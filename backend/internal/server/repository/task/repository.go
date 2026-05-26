@@ -90,3 +90,36 @@ func (repo *RepositoryTask) GetAllListTasks(ctx context.Context) ([]models.GetTa
 
 	return tasks, nil
 }
+
+func (repo *RepositoryTask) GetTasksByUserId(ctx context.Context, id int) ([]models.GetTask, error) {
+	query := `SELECT id, user_id, title, short_description, all_description, 
+    category, budget, author, date::TEXT, deadline::TEXT, phone, email,
+    location, requirements FROM tasks WHERE user_id = $1`
+
+	rows, err := repo.Db.Query(ctx, query, id)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []models.GetTask
+	for rows.Next() {
+		var t models.GetTask
+		err := rows.Scan(
+			&t.Id, &t.UserId, &t.Title, &t.ShortDescription,
+			&t.AllDescription, &t.Category, &t.Budget,
+			&t.Author, &t.Date, &t.Deadline, &t.Phone,
+			&t.Email, &t.Location, &t.Requirements,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка сканирования %w", err)
+		}
+		tasks = append(tasks, t)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("ошибка после итерации по строкам %w", err)
+	}
+
+	return tasks, nil
+}

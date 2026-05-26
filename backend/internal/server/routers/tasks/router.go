@@ -10,6 +10,7 @@ import (
 type UseCaseTask interface {
 	AddTask(ctx context.Context, task models.AddTaskRequest) (int, error)
 	GetAllListTasks(ctx context.Context) ([]models.GetTask, error)
+	GetTasksByUserId(ctx context.Context, id int) ([]models.GetTask, error)
 }
 
 type TaskRouter struct {
@@ -21,4 +22,6 @@ func InitRouter(r *mux.Router, UC UseCaseTask) {
 	chat := r.PathPrefix("/task").Subrouter()
 	chat.HandleFunc("/getListTask", taskRouter.getListTask).Methods("GET")
 	chat.HandleFunc("/addTask", taskRouter.addTask).Methods("POST")
+	chat.HandleFunc("/getTasksByUserId", taskRouter.GetServiceByUserId).Methods("GET")
 }
+

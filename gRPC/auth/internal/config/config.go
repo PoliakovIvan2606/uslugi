@@ -20,10 +20,10 @@ type GRPC struct {
 
 type Postgres struct {
 	User string `yaml:"user" env:"DB_USER" env-default:"postgres"` 
-	Pass string `yaml:"pass" env:"DB_PASS" env-default:"postgres"` 
+	Pass string `yaml:"pass" env:"DB_PASS" env-default:"password"` 
 	Host string `yaml:"host" env:"DB_HOST" env-default:"localhost"` 
 	Port string `yaml:"port" env:"DB_PORT" env-default:"5432"` 
-	NameDB string `yaml:"name_db" env:"DB_NAME" env-default:"postgres"` 
+	NameDB string `yaml:"name_db" env:"DB_NAME" env-default:"posttgres"` 
 }
 
 type JWT struct {

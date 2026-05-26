@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"net/http"
+	"notificate/internal/server/middleware"
 	"notificate/pkg/handler"
 )
 
@@ -24,6 +25,41 @@ type GetTaskResponse struct {
 
 func(router *TaskRouter) getListTask(w http.ResponseWriter, r *http.Request) {	
 	tasks, err := router.UC.GetAllListTasks(r.Context())
+	if err != nil {
+		http.Error(w, "ошибка получения списка task"+err.Error(), http.StatusBadRequest)
+	}
+
+	out := []GetTaskResponse{}
+	for _, task := range tasks {
+		outtask := GetTaskResponse{}
+		outtask.Id = task.Id
+		outtask.UserId = task.UserId
+		outtask.Title = task.Title
+		outtask.Description = task.ShortDescription
+		outtask.FullDescription = task.AllDescription
+		outtask.Category = task.Category
+		outtask.Budget = task.Budget
+		outtask.Author = task.Author
+		outtask.Date = task.Date
+		outtask.Deadline = task.Deadline
+		outtask.Phone = task.Phone
+		outtask.Email = task.Email
+		outtask.Location = task.Location
+
+		out = append(out, outtask)
+	}
+	
+	handler.Response(w, out)
+}
+
+func(router *TaskRouter) GetServiceByUserId(w http.ResponseWriter, r *http.Request) {
+	uid, ok := r.Context().Value(middleware.KeyUid).(int)
+	if !ok {
+		http.Error(w, "Unauthorized: user ID missing or invalid", http.StatusUnauthorized)
+		return
+	}
+
+	tasks, err := router.UC.GetTasksByUserId(r.Context(), uid)
 	if err != nil {
 		http.Error(w, "ошибка получения списка task"+err.Error(), http.StatusBadRequest)
 	}

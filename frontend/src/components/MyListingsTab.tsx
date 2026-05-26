@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import React from 'react';
 import { Service, Task } from '../App';
-import { Briefcase, ListTodo, Lightbulb, X, Calendar, DollarSign, MapPin, MessageCircle, AlertCircle } from 'lucide-react';
+import { Briefcase, ListTodo, Lightbulb, X, Calendar, DollarSign, MapPin, MessageCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { ApiImage } from './ApiImage';
+import { api } from '../utils/api';
 
 interface MyListingsTabProps {
   userServices: Service[];
@@ -32,6 +33,7 @@ export function MyListingsTab({
   const [subTab, setSubTab] = useState<'services' | 'tasks'>('services');
   const [selectedItem, setSelectedItem] = useState<{ type: 'service' | 'task'; item: Service | Task } | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [isLoadingRecs, setIsLoadingRecs] = useState(false);
 
   const getRecommendations = (item: Service | Task, type: 'service' | 'task') => {
     const recs: Recommendation[] = [];
@@ -90,10 +92,36 @@ export function MyListingsTab({
     return recs.sort((a, b) => b.score - a.score).slice(0, 5);
   };
 
-  const handleShowRecommendations = (item: Service | Task, type: 'service' | 'task') => {
-    const recs = getRecommendations(item, type);
-    setRecommendations(recs);
+  const handleShowRecommendations = async (item: Service | Task, type: 'service' | 'task') => {
     setSelectedItem({ type, item });
+    setRecommendations([]);
+    setIsLoadingRecs(true);
+
+    try {
+      if (type === 'service') {
+        // Рекомендации задач для услуги
+        const tasks = await api.getServiceRecommendations(item.id);
+        const recs: Recommendation[] = tasks.map((task: Task) => ({ 
+          type: 'task' as const, 
+          item: task, 
+          score: 0 
+        }));
+        setRecommendations(recs);
+      } else {
+        const services = await api.getTaskRecommendations(item.id);
+        const recs: Recommendation[] = services.map((service: Service) => ({
+          type: 'service' as const,
+          item: service,
+          score: 0
+        }));
+        setRecommendations(recs);
+      }
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
+      setRecommendations([]);
+    } finally {
+      setIsLoadingRecs(false);
+    }
   };
 
   const handleCloseRecommendations = () => {
@@ -220,11 +248,13 @@ export function MyListingsTab({
           <div className="flex-1">
             <div className="flex items-start justify-between mb-1">
               <h4 className="text-gray-900 font-medium">{item.title}</h4>
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                isService ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-              }`}>
-                {rec.score}% совпадение
-              </span>
+              {rec.score > 0 && (
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  isService ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                }`}>
+                  {rec.score}% совпадение
+                </span>
+              )}
             </div>
             <span className="text-xs text-gray-500">{item.category}</span>
           </div>
@@ -346,7 +376,12 @@ export function MyListingsTab({
 
             {/* Recommendations List */}
             <div className="flex-1 overflow-y-auto p-6">
-              {recommendations.length > 0 ? (
+              {isLoadingRecs ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                  <p className="text-gray-500">Загружаем рекомендации...</p>
+                </div>
+              ) : recommendations.length > 0 ? (
                 <div className="space-y-3">
                   {recommendations.map((rec) => renderRecommendationCard(rec))}
                 </div>

@@ -1,4 +1,4 @@
-package service
+	package service
 
 import (
 	"context"
@@ -65,6 +65,35 @@ func (repo *RepositoryService) GetAllListServices(ctx context.Context) ([]models
 	location FROM service`
 
 	rows, err := repo.Db.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса %w", err)
+	}
+	defer rows.Close()
+
+	var services []models.GetService
+	for rows.Next() {
+		var s models.GetService
+		err := rows.Scan(
+			&s.Id, &s.UserId, &s.Name, &s.ShortDescription,
+			&s.AllDescription, &s.Category, &s.Price,
+			&s.NameSpecialist, &s.Experience, &s.Phone,
+			&s.Email, &s.Location,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка сканирования %w", err)
+		}
+		services = append(services, s)
+	}
+
+	return services, nil
+}
+
+func (repo *RepositoryService) GetServiceByUserId(ctx context.Context, id int) ([]models.GetService, error) {
+	query := `SELECT id, user_id, name, short_description, all_description, 
+	category, price, name_specialist, experience, phone, email,
+	location FROM service WHERE user_id = $1`
+
+	rows, err := repo.Db.Query(ctx, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка запроса %w", err)
 	}

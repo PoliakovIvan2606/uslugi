@@ -357,5 +357,149 @@ export const api = {
       console.error('Error getting chats:', error);
       throw error;
     }
-  }
+  },
+
+  // Get task recommendations for a service by service ID
+  async getServiceRecommendations(serviceId: string): Promise<any[]> {
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/v1/recommendations/service/${serviceId}`, {
+        headers: getHeaders(),
+      });
+
+      await handleResponse(response);
+      const data = await response.json();
+
+      return data.map((item: any) => ({
+        ...item,
+        budget: item.budget != null ? String(item.budget) : 'Не указан',
+        photos: item.id ? [`${API_BASE_URL}/task/getImage/${item.id}`] : []
+      }));
+    } catch (error) {
+      console.error('Error fetching service recommendations:', error);
+      return [];
+    }
+  },
+
+  // Get service recommendations for a task by task ID
+  async getTaskRecommendations(taskId: string): Promise<any[]> {
+    try {
+      // Запрос идет на ML-сервер (порт 8000) к эндпоинту задач
+      const response = await fetch(`http://127.0.0.1:8000/api/v1/recommendations/task/${taskId}`, {
+        headers: getHeaders(),
+      });
+
+      await handleResponse(response);
+      const data = await response.json();
+
+      if (!data) return [];
+
+      // Приводим поля к интерфейсу Service, который используется на фронтенде
+      return data.map((item: any) => ({
+        id: String(item.id),
+        userId: item.userId,
+        title: item.title,          // Мапится из схемы бэкенда (title)
+        description: item.description,
+        fullDescription: item.fullDescription,
+        category: item.category,
+        price: item.budget != null ? String(item.budget) : 'Договорная', // Схема отдает budget, переводим в price
+        author: item.author,        // Имя специалиста
+        date: item.date,
+        location: item.location,
+        phone: item.phone,
+        email: item.email,
+        photos: item.id ? [`${API_BASE_URL}/service/getImage/${item.id}`] : [] // Картинки забираем с основного бэкенда
+      }));
+    } catch (error) {
+      console.error('Error fetching task recommendations:', error);
+      return [];
+    }
+  },
+
+  // Search recommendations (services or tasks)
+  async searchRecommendations(query: string): Promise<any[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/recommendations?query=${encodeURIComponent(query)}`, {
+        headers: getHeaders(),
+      });
+
+      await handleResponse(response);
+      const data = await response.json();
+      
+      // Transform data similar to services/tasks
+      return data.map((item: any) => ({
+        ...item,
+        price: item.price || item.budget || 'Договорная',
+        budget: item.budget || 'Не указан',
+        photos: item.id ? [`${API_BASE_URL}/service/getImage/${item.id}`] : []
+      }));
+    } catch (error) {
+      console.error('Error searching recommendations:', error);
+      return [];
+    }
+  },
+
+  async fetchUserServices(): Promise<any[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/service/getServiceByUserId`, {
+        headers: getHeaders(), // Метод защищен, токен передается автоматически
+      });
+      await handleResponse(response);
+      const data = await response.json();
+      
+      // Если бэкенд возвращает null вместо пустого массива
+      if (!data) return [];
+
+      // Трансформация полей под интерфейс React-компонента (Service)
+      return data.map((service: any) => ({
+        id: String(service.id),
+        userId: service.userId,
+        title: service.title || service.name, // Защита на случай расхождения name/title
+        description: service.description || service.shortDescription,
+        fullDescription: service.fullDescription,
+        category: service.category,
+        price: service.price != null ? String(service.price) : 'Договорная',
+        author: service.author,
+        date: service.date || new Date().toISOString(), // Дефолтная дата, если нет в ответе
+        location: service.location,
+        photos: service.id ? [`${API_BASE_URL}/service/getImage/${service.id}`] : []
+      }));
+    } catch (error) {
+      console.error('Error fetching user services:', error);
+      return [];
+    }
+  },
+
+  // Fetch tasks for specific user (My Listings)
+  async fetchUserTasks(): Promise<any[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/task/getTasksByUserId`, {
+        headers: getHeaders(), // Токен авторизации подкладывается автоматически
+      });
+      await handleResponse(response);
+      const data = await response.json();
+      
+      if (!data) return [];
+
+      // Маппинг данных под фронтенд-интерфейс Task
+      return data.map((task: any) => ({
+        id: String(task.id),
+        userId: task.userId,
+        title: task.title,
+        description: task.description || task.shortDescription,
+        fullDescription: task.fullDescription,
+        category: task.category,
+        budget: task.budget != null ? String(task.budget) : 'Не указан',
+        author: task.author,
+        date: task.date,
+        deadline: task.deadline,
+        phone: task.phone,
+        email: task.email,
+        location: task.location,
+        requirements: task.requirements || null
+      }));
+    } catch (error) {
+      console.error('Error fetching user tasks:', error);
+      return [];
+    }
+  },
 };

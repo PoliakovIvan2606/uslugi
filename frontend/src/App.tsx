@@ -80,6 +80,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'services' | 'tasks' | 'myListings' | 'chats'>('services');
   const [services, setServices] = useState<Service[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [userServices, setUserServices] = useState<Service[]>([]);
+  const [userTasks, setUserTasks] = useState<Task[]>([]);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [chats, setChats] = useState<Chat[]>([]);
@@ -87,6 +89,11 @@ export default function App() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Search states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<(Service | Task)[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -129,6 +136,26 @@ export default function App() {
     };
   }, []);
 
+  const loadUserServices = async () => {
+    if (!tokenManager.getToken() || !currentUser) return;
+    try {
+      const uServices = await api.fetchUserServices();
+      setUserServices(uServices);
+    } catch (error) {
+      console.error('Error loading user services:', error);
+    }
+  };
+
+  const loadUserTasks = async () => {
+    if (!tokenManager.getToken() || !currentUser) return;
+    try {
+      const uTasks = await api.fetchUserTasks();
+      setUserTasks(uTasks);
+    } catch (error) {
+      console.error('Error loading user tasks:', error);
+    }
+  };
+
   // Load data from API
   useEffect(() => {
     const loadData = async () => {
@@ -156,6 +183,8 @@ export default function App() {
         // Load chats if user is logged in
         if (currentUser) {
           await loadChats();
+          await loadUserServices();
+          await loadUserTasks();
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -245,13 +274,14 @@ export default function App() {
   };
 
   const handleDeleteService = (serviceId: string) => {
-    if (confirm('Вы уверены, что хотите удалить эту услугу?')) {
+    // Добавляем window.
+    if (window.confirm('Вы уверены, что хотите удалить эту услугу?')) {
       setServices(services.filter(s => s.id !== serviceId));
     }
   };
 
   const handleDeleteTask = (taskId: string) => {
-    if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
+    if (window.confirm('Вы уверены, что хотите удалить эту задачу?')) {
       setTasks(tasks.filter(t => t.id !== taskId));
     }
   };
@@ -297,6 +327,8 @@ export default function App() {
       // Reload services from server
       const updatedServices = await api.fetchServices();
       setServices(updatedServices);
+
+      await loadUserServices();
       
       setShowServiceModal(false);
       alert('Услуга успешно добавлена!');
@@ -347,6 +379,8 @@ export default function App() {
       // Reload tasks from server
       const updatedTasks = await api.fetchTasks();
       setTasks(updatedTasks);
+
+      await loadUserTasks();
       
       setShowTaskModal(false);
       alert('Задача успешно добавлена!');
@@ -508,6 +542,35 @@ export default function App() {
   const handleCloseDetail = () => {
     setSelectedService(null);
     setSelectedTask(null);
+  };
+
+  // Handle search
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await api.searchRecommendations(query);
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Error searching:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setIsSearching(false);
   };
 
   // Show detail pages if service or task is selected
@@ -698,6 +761,11 @@ export default function App() {
             tasks={tasks} 
             onStartChat={handleStartChat}
             onViewService={handleViewService}
+            searchQuery={searchQuery}
+            searchResults={searchResults.length > 0 ? searchResults as Service[] : undefined}
+            isSearching={isSearching}
+            onSearch={handleSearch}
+            onClearSearch={handleClearSearch}
           />
         ) : activeTab === 'tasks' ? (
           <TaskList 
@@ -705,11 +773,18 @@ export default function App() {
             services={services} 
             onStartChat={handleStartChat}
             onViewTask={handleViewTask}
+            searchQuery={searchQuery}
+            searchResults={searchResults.length > 0 ? searchResults as Task[] : undefined}
+            isSearching={isSearching}
+            onSearch={handleSearch}
+            onClearSearch={handleClearSearch}
           />
         ) : activeTab === 'myListings' ? (
           <MyListingsTab
-            userServices={currentUser ? services.filter(s => s.author === currentUser.email) : []}
-            userTasks={currentUser ? tasks.filter(t => t.author === currentUser.email) : []}
+            userServices={userServices}
+            // userServices={currentUser ? services.filter(s => s.author === currentUser.email) : []}
+            userTasks={userTasks}
+            // userTasks={currentUser ? tasks.filter(t => t.author === currentUser.email) : []}
             allServices={services}
             allTasks={tasks}
             onStartChat={handleStartChat}

@@ -2,6 +2,7 @@ package services
 
 import (
 	"net/http"
+	"notificate/internal/server/middleware"
 	"notificate/pkg/handler"
 )
 
@@ -23,6 +24,41 @@ type GetServiceResponse struct {
 
 func(router *ServiceRouter) getListService(w http.ResponseWriter, r *http.Request) {	
 	services, err := router.UC.GetAllListServices(r.Context())
+	if err != nil {
+		http.Error(w, "ошибка получения списка service"+err.Error(), http.StatusBadRequest)
+	}
+
+	out := []GetServiceResponse{}
+	for _, service := range services {
+		outService := GetServiceResponse{}
+		outService.Id = service.Id
+		outService.Title = service.Name
+		outService.UserId = service.UserId
+		outService.Description = service.ShortDescription
+		outService.FullDescription = service.AllDescription
+		outService.Category = service.Category
+		outService.Price = service.Price
+		outService.Author = service.NameSpecialist
+		outService.Experience = service.Experience
+		outService.Phone = service.Phone
+		outService.Email = service.Email
+		outService.Location = service.Location
+
+		out = append(out, outService)
+	}
+	
+	handler.Response(w, out)
+}
+
+
+
+func(router *ServiceRouter) GetServiceByUserId(w http.ResponseWriter, r *http.Request) {
+	uid, ok := r.Context().Value(middleware.KeyUid).(int)
+	if !ok {
+		http.Error(w, "Unauthorized: user ID missing or invalid", http.StatusUnauthorized)
+		return
+	}
+	services, err := router.UC.GetServiceByUserId(r.Context(), uid)
 	if err != nil {
 		http.Error(w, "ошибка получения списка service"+err.Error(), http.StatusBadRequest)
 	}

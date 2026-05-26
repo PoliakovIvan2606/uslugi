@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"notificate/internal/server/client/auth/grpc"
 	"notificate/pkg/handler"
@@ -43,6 +44,7 @@ func (rout *AuthRouter) Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := rout.grpc.Login(r.Context(), in.Email, in.Password)
 	if err != nil {
+		slog.Error(op, err)
 		http.Error(w, "Ошибка автоизации: "+err.Error(), http.StatusBadRequest)
         return
 	}
@@ -73,6 +75,7 @@ func (rout *AuthRouter) Register(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := rout.grpc.Register(r.Context(), in.Email, in.Password)
 	if err != nil {
+		slog.Error(op, err)
 		http.Error(w, "Ошибка автоизации: "+err.Error(), http.StatusBadRequest)
         return
 	}
